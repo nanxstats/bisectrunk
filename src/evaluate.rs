@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::cli::SetupFailure;
@@ -22,6 +22,8 @@ pub(crate) struct Evaluation {
     pub(crate) setup_exit_code: Option<i32>,
     pub(crate) log_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
+    #[serde(default)]
+    pub(crate) diff: Option<String>,
 }
 
 pub(crate) fn evaluate(
@@ -30,9 +32,6 @@ pub(crate) fn evaluate(
     sha: &str,
     job: usize,
 ) -> Result<Evaluation> {
-    if config.oracle.kind != crate::cli::OracleKind::Exit {
-        bail!("compare oracle is implemented in milestone M4");
-    }
     let started = Instant::now();
     let worktree_path = config
         .execution
@@ -71,9 +70,11 @@ pub(crate) fn evaluate(
         job,
         extra_env: &config.hooks.env,
         pin_envs: None,
+        baseline: None,
+        candidate: None,
     };
     let mut setup_exit_code = None;
-    let (classification, exit_code) = if let Some(setup) = &config.hooks.setup {
+    let (classification, exit_code, diff) = if let Some(setup) = &config.hooks.setup {
         let result = crate::hooks::execute(
             setup,
             config.hooks.shell.as_deref(),
@@ -88,10 +89,10 @@ pub(crate) fn evaluate(
         match setup_class {
             Classification::Good => run_hook(config, &context, &log_dir, timeout)?,
             Classification::Bad if config.execution.setup_failure == SetupFailure::Bad => {
-                (Classification::Bad, result.code)
+                (Classification::Bad, result.code, None)
             }
-            Classification::Abort => (Classification::Abort, result.code),
-            Classification::Bad | Classification::Skip => (Classification::Skip, result.code),
+            Classification::Abort => (Classification::Abort, result.code, None),
+            Classification::Bad | Classification::Skip => (Classification::Skip, result.code, None),
         }
     } else {
         run_hook(config, &context, &log_dir, timeout)?
@@ -108,6 +109,7 @@ pub(crate) fn evaluate(
         setup_exit_code,
         log_dir,
         out_dir,
+        diff,
     })
 }
 
@@ -116,7 +118,7 @@ fn run_hook(
     context: &HookContext<'_>,
     log_dir: &std::path::Path,
     timeout: Option<Duration>,
-) -> Result<(Classification, i32)> {
+) -> Result<(Classification, i32, Option<String>)> {
     let result = crate::hooks::execute(
         &config.hooks.run,
         config.hooks.shell.as_deref(),
@@ -126,5 +128,11 @@ fn run_hook(
         timeout,
     )
     .with_context(|| format!("execute run hook for commit {}", context.commit))?;
-    Ok((classify_exit(result.code, result.timed_out), result.code))
+    let classification = classify_exit(result.code, result.timed_out);
+    if config.oracle.kind == crate::cli::OracleKind::Exit || classification != Classification::Good
+    {
+        return Ok((classification, result.code, None));
+    }
+    let compared = crate::oracle::compare_artifact(config, context, log_dir, timeout)?;
+    Ok((compared.classification, compared.exit_code, compared.diff))
 }

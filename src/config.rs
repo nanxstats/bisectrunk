@@ -211,6 +211,33 @@ pub(crate) fn resolve(shared: &SharedArgs, file: FileConfig) -> Result<ResolvedC
     } else {
         shared.paths.clone()
     };
+    let oracle_kind = shared.oracle.or(file.oracle.kind).unwrap_or_default();
+    let baseline = shared.baseline.clone().or(file.oracle.baseline);
+    let artifact = shared.artifact.clone().or(file.oracle.artifact);
+    if oracle_kind == OracleKind::Compare {
+        if baseline.is_none() {
+            bail!("--baseline is required with --oracle compare");
+        }
+        let artifact_path = artifact
+            .as_ref()
+            .ok_or_else(|| anyhow!("--artifact is required with --oracle compare"))?;
+        if artifact_path.is_absolute()
+            || artifact_path.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::ParentDir
+                        | std::path::Component::RootDir
+                        | std::path::Component::Prefix(_)
+                )
+            })
+        {
+            bail!("--artifact must be a relative path below BISECTRUNK_OUT");
+        }
+    }
+    for pattern in &file.oracle.normalize {
+        regex::Regex::new(pattern)
+            .with_context(|| format!("compile oracle normalization regex {pattern:?}"))?;
+    }
     Ok(ResolvedConfig {
         subject: ResolvedSubject {
             repo,
@@ -227,9 +254,9 @@ pub(crate) fn resolve(shared: &SharedArgs, file: FileConfig) -> Result<ResolvedC
             env,
         },
         oracle: ResolvedOracle {
-            kind: shared.oracle.or(file.oracle.kind).unwrap_or_default(),
-            baseline: shared.baseline.clone().or(file.oracle.baseline),
-            artifact: shared.artifact.clone().or(file.oracle.artifact),
+            kind: oracle_kind,
+            baseline,
+            artifact,
             normalize: file.oracle.normalize,
         },
         execution: ResolvedExecution {

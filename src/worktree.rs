@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use xshell::{Shell, cmd};
 
+static WORKTREE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[derive(Debug)]
 pub(crate) struct Worktree {
     mirror: PathBuf,
@@ -13,6 +15,9 @@ pub(crate) struct Worktree {
 
 impl Worktree {
     pub(crate) fn create(mirror: &Path, path: PathBuf, sha: &str) -> Result<Self> {
+        let _guard = WORKTREE_LOCK
+            .lock()
+            .map_err(|_| anyhow::anyhow!("worktree lifecycle lock was poisoned"))?;
         if path.exists() {
             fs::remove_dir_all(&path)
                 .with_context(|| format!("remove old worktree directory {}", path.display()))?;
@@ -57,6 +62,9 @@ impl Worktree {
         if self.removed {
             return Ok(());
         }
+        let _guard = WORKTREE_LOCK
+            .lock()
+            .map_err(|_| anyhow::anyhow!("worktree lifecycle lock was poisoned"))?;
         let shell = Shell::new().context("initialize shell for worktree cleanup")?;
         let mirror = &self.mirror;
         let path = &self.path;
@@ -85,7 +93,7 @@ impl Drop for Worktree {
         if self.removed {
             return;
         }
-        if let Ok(shell) = Shell::new() {
+        if let (Ok(_guard), Ok(shell)) = (WORKTREE_LOCK.lock(), Shell::new()) {
             let mirror = &self.mirror;
             let path = &self.path;
             let _ = cmd!(

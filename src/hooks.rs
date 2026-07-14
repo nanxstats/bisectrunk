@@ -17,6 +17,8 @@ pub(crate) struct HookContext<'a> {
     pub(crate) job: usize,
     pub(crate) extra_env: &'a BTreeMap<String, String>,
     pub(crate) pin_envs: Option<&'a str>,
+    pub(crate) baseline: Option<&'a Path>,
+    pub(crate) candidate: Option<&'a Path>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -101,6 +103,12 @@ fn set_contract_env(process: &mut Command, context: &HookContext<'_>) {
         .envs(context.extra_env);
     if let Some(pin_envs) = context.pin_envs {
         process.env("BISECTRUNK_PIN_ENVS", pin_envs);
+    }
+    if let Some(baseline) = context.baseline {
+        process.env("BISECTRUNK_BASELINE", baseline);
+    }
+    if let Some(candidate) = context.candidate {
+        process.env("BISECTRUNK_CANDIDATE", candidate);
     }
 }
 

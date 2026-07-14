@@ -130,6 +130,26 @@ fn markdown(plan: &RunPlan, state: &RunState, report: &Report<'_>) -> String {
             ));
         }
     }
+    let diffs = report
+        .evaluations
+        .iter()
+        .filter_map(|evaluation| {
+            evaluation
+                .diff
+                .as_ref()
+                .map(|diff| (evaluation.sha.as_str(), diff))
+        })
+        .collect::<Vec<_>>();
+    if !diffs.is_empty() {
+        output.push_str("\n## Artifact differences\n\n");
+        for (sha, diff) in diffs {
+            output.push_str(&format!(
+                "### `{}`\n\n```diff\n{}\n```\n\n",
+                crate::util::short_sha(sha),
+                diff
+            ));
+        }
+    }
     if let Some(conclusion) = &state.conclusion {
         output.push_str("\n## Conclusion\n\n");
         if conclusion.candidates.is_empty() {
