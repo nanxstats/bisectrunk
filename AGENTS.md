@@ -1,0 +1,3 @@
+# AGENTS.md
+
+This project ships a Rust CLI that...
