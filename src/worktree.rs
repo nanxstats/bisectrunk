@@ -22,10 +22,19 @@ impl Worktree {
                 .with_context(|| format!("create worktree parent {}", parent.display()))?;
         }
         let shell = Shell::new().context("initialize shell for worktree creation")?;
+        cmd!(shell, "git --git-dir {mirror} worktree prune")
+            .quiet()
+            .ignore_stdout()
+            .ignore_stderr()
+            .run()
+            .with_context(|| format!("prune stale worktrees for {}", mirror.display()))?;
         cmd!(
             shell,
             "git --git-dir {mirror} worktree add --detach {path} {sha}"
         )
+        .quiet()
+        .ignore_stdout()
+        .ignore_stderr()
         .run()
         .with_context(|| {
             format!(
@@ -55,9 +64,15 @@ impl Worktree {
             shell,
             "git --git-dir {mirror} worktree remove --force {path}"
         )
+        .quiet()
+        .ignore_stdout()
+        .ignore_stderr()
         .run()
         .with_context(|| format!("remove worktree {}", self.path.display()))?;
         cmd!(shell, "git --git-dir {mirror} worktree prune")
+            .quiet()
+            .ignore_stdout()
+            .ignore_stderr()
             .run()
             .with_context(|| format!("prune mirror worktrees {}", self.mirror.display()))?;
         self.removed = true;
@@ -78,9 +93,13 @@ impl Drop for Worktree {
                 "git --git-dir {mirror} worktree remove --force {path}"
             )
             .quiet()
+            .ignore_stdout()
+            .ignore_stderr()
             .run();
             let _ = cmd!(shell, "git --git-dir {mirror} worktree prune")
                 .quiet()
+                .ignore_stdout()
+                .ignore_stderr()
                 .run();
         }
     }

@@ -20,12 +20,18 @@ impl Mirror {
         let shell = Shell::new().context("initialize shell for git mirror operations")?;
         if path.exists() {
             cmd!(shell, "git --git-dir {path} fetch --prune origin")
+                .quiet()
+                .ignore_stdout()
+                .ignore_stderr()
                 .run()
                 .with_context(|| {
                     format!("fetch subject repository {repo} into {}", path.display())
                 })?;
         } else {
             cmd!(shell, "git clone --mirror {repo} {path}")
+                .quiet()
+                .ignore_stdout()
+                .ignore_stderr()
                 .run()
                 .with_context(|| {
                     format!("clone subject repository {repo} into {}", path.display())
@@ -42,6 +48,9 @@ impl Mirror {
         let shell = Shell::new().context("initialize shell for worktree prune")?;
         let path = &self.path;
         cmd!(shell, "git --git-dir {path} worktree prune")
+            .quiet()
+            .ignore_stdout()
+            .ignore_stderr()
             .run()
             .with_context(|| format!("prune worktrees for mirror {}", self.path.display()))
     }

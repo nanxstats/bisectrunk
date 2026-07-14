@@ -257,7 +257,7 @@ fn default_jobs() -> usize {
         .min(8)
 }
 
-fn default_cache_dir() -> Result<PathBuf> {
+pub(crate) fn default_cache_dir() -> Result<PathBuf> {
     let strategy = choose_base_strategy().context("determine platform cache directory")?;
     Ok(strategy.cache_dir().join("bisectrunk"))
 }

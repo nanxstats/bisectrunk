@@ -20,7 +20,7 @@ fn run_classifies_all_exit_protocol_outcomes() {
             .assert()
             .code(process_code)
             .stdout(predicate::str::contains(format!(
-                " {classification} (exit {hook_code})"
+                " {classification} (exit {hook_code},"
             )));
         let log = run_dir.join("logs").join(&fixture.shas[0]).join("run.log");
         assert!(log.is_file(), "missing hook log {}", log.display());
@@ -37,7 +37,7 @@ fn run_uses_worktree_contract_and_setup_policy() {
     command
         .assert()
         .code(2)
-        .stdout(predicate::str::contains(" skip (exit 1)"));
+        .stdout(predicate::str::contains(" skip (exit 1,"));
 
     let bad_dir = temp.path().join("bad-setup");
     let mut command = common::command_for(&fixture, &bad_dir, &temp.path().join("cache"));
@@ -52,5 +52,5 @@ fn run_uses_worktree_contract_and_setup_policy() {
     command
         .assert()
         .success()
-        .stdout(predicate::str::contains(" bad (exit 1)"));
+        .stdout(predicate::str::contains(" bad (exit 1,"));
 }
