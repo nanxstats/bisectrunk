@@ -2,5 +2,23 @@
 name = "bisectrunk"
 version = "0.1.0"
 edition = "2024"
+description = "To be added"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/nanxstats/bisectrunk"
+documentation = "https://nanx.me/bisectrunk/"
+keywords = []
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.85"
+authors = ["Nan Xiao <me@nanx.me>"]
+exclude = [
+    "AGENTS.md",
+    "pyproject.toml",
+    "uv.lock",
+    ".python-version",
+    "site/",
+    "docs/",
+    "zensical.toml",
+]
 
 [dependencies]
