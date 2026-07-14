@@ -26,7 +26,7 @@ Pin setup hooks additionally receive `BISECTRUNK_PIN_ENV` and
 | Code | Meaning |
 |---:|---|
 | `0` | good; setup proceeds to run |
-| `1`–`124`, `126`, `127` | bad; setup defaults to skip |
+| `1` to `124`, `126`, `127` | bad; setup defaults to skip |
 | `125` | skip / untestable |
 | `128` or greater | abort the entire run |
 

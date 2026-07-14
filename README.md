@@ -65,7 +65,7 @@ interrupt, and `report RUN_DIR` to regenerate reports. Common controls include
 | Exit code | Classification |
 |---:|---|
 | `0` | good |
-| `1`–`124`, `126`, `127` | bad |
+| `1` to `124`, `126`, `127` | bad |
 | `125` | skip / untestable |
 | `128` or greater | abort the run |
 

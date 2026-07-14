@@ -17,7 +17,7 @@ re-evaluates the contradictory probes once.
 
 ## Parallel scan
 
-Scan maps the evaluator over an ordered range and reports every good↔bad
+Scan maps the evaluator over an ordered range and reports every good <-> bad
 transition. `--stride` selects every Nth commit. `--sample` selects evenly spaced
 commits and prints a follow-up bisect command around the first observed
 transition.
