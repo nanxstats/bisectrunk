@@ -130,6 +130,19 @@ fn markdown(plan: &RunPlan, state: &RunState, report: &Report<'_>) -> String {
             ));
         }
     }
+    if let Operation::Scan {
+        sample: Some(_), ..
+    } = &plan.operation
+        && let Some(transition) = report.transitions.first()
+    {
+        output.push_str(&format!(
+            "\nFollow up with:\n\n```bash\nbisectrunk bisect --repo {} --good {} --bad {} --run {}\n```\n",
+            shell_quote(&plan.config.subject.repo),
+            transition.from_sha,
+            transition.to_sha,
+            shell_quote(&plan.config.hooks.run)
+        ));
+    }
     let diffs = report
         .evaluations
         .iter()
@@ -170,7 +183,11 @@ fn markdown(plan: &RunPlan, state: &RunState, report: &Report<'_>) -> String {
             }
         }
     }
-    let total = operation_commits(&plan.operation).len();
+    let total = match &plan.operation {
+        Operation::Run { .. } => 1,
+        Operation::Scan { commits, .. } => commits.len(),
+        Operation::Bisect { commits, .. } => commits.len().saturating_sub(1),
+    };
     let evaluated = state.evaluations.len();
     output.push_str(&format!(
         "\n## Savings\n\n{evaluated} evaluations instead of {total} (saved {}).\n",
@@ -199,4 +216,8 @@ pub(crate) fn report_paths(run_dir: &Path) -> (String, String) {
         run_dir.join("report.md").display().to_string(),
         run_dir.join("report.json").display().to_string(),
     )
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }

@@ -86,6 +86,10 @@ impl Worktree {
         self.removed = true;
         Ok(())
     }
+
+    pub(crate) fn retain(&mut self) {
+        self.removed = true;
+    }
 }
 
 impl Drop for Worktree {

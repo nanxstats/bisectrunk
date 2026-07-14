@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
@@ -16,7 +17,7 @@ pub(crate) struct HookContext<'a> {
     pub(crate) run_dir: &'a Path,
     pub(crate) job: usize,
     pub(crate) extra_env: &'a BTreeMap<String, String>,
-    pub(crate) pin_envs: Option<&'a str>,
+    pub(crate) pin_envs: Option<&'a OsStr>,
     pub(crate) baseline: Option<&'a Path>,
     pub(crate) candidate: Option<&'a Path>,
 }

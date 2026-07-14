@@ -17,6 +17,7 @@ pub struct FixtureBuilder {
     commits: usize,
     flip_at: usize,
     broken: Vec<usize>,
+    branchy: bool,
 }
 
 impl FixtureBuilder {
@@ -25,6 +26,7 @@ impl FixtureBuilder {
             commits,
             flip_at: commits / 2,
             broken: Vec::new(),
+            branchy: false,
         }
     }
 
@@ -35,6 +37,11 @@ impl FixtureBuilder {
 
     pub fn broken_at(mut self, indices: impl IntoIterator<Item = usize>) -> Self {
         self.broken = indices.into_iter().collect();
+        self
+    }
+
+    pub fn branchy(mut self) -> Self {
+        self.branchy = true;
         self
     }
 
@@ -50,7 +57,7 @@ impl FixtureBuilder {
         shell.set_var("GIT_COMMITTER_EMAIL", "fixture@example.invalid");
         shell.set_var("GIT_AUTHOR_DATE", "2000-01-01T00:00:00+0000");
         shell.set_var("GIT_COMMITTER_DATE", "2000-01-01T00:00:00+0000");
-        cmd!(shell, "git init --quiet {path}")
+        cmd!(shell, "git init --quiet --initial-branch main {path}")
             .run()
             .expect("initialize fixture repository");
         let mut shas = Vec::with_capacity(self.commits);
@@ -79,6 +86,31 @@ impl FixtureBuilder {
                 .read()
                 .expect("read fixture commit SHA");
             shas.push(sha);
+        }
+        if self.branchy && self.commits >= 2 {
+            let branch_point = &shas[self.commits / 2];
+            cmd!(
+                shell,
+                "git -C {path} checkout --quiet -b fixture-side {branch_point}"
+            )
+            .run()
+            .expect("create fixture side branch");
+            fs::write(path.join("side.txt"), "side branch\n").expect("write side marker");
+            cmd!(shell, "git -C {path} add side.txt")
+                .run()
+                .expect("stage side branch");
+            cmd!(shell, "git -C {path} commit --quiet -m fixture-side")
+                .run()
+                .expect("commit side branch");
+            cmd!(shell, "git -C {path} checkout --quiet main")
+                .run()
+                .expect("return to fixture main branch");
+            cmd!(
+                shell,
+                "git -C {path} merge --quiet --no-ff fixture-side -m fixture-merge"
+            )
+            .run()
+            .expect("merge fixture side branch");
         }
         let first_bad = shas[self.flip_at].clone();
         FixtureRepo {

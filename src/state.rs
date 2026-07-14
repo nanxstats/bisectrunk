@@ -134,6 +134,7 @@ pub(crate) fn cache_key(config: &ResolvedConfig, sha: &str) -> Result<String> {
     let pins = serde_json::to_string(&config.pins).context("serialize pin config")?;
     let setup_failure = serde_json::to_string(&config.execution.setup_failure)
         .context("serialize setup-failure policy")?;
+    let retries = config.execution.retries.to_string();
     Ok(crate::util::stable_hash(&[
         &config.subject.repo,
         sha,
@@ -144,6 +145,7 @@ pub(crate) fn cache_key(config: &ResolvedConfig, sha: &str) -> Result<String> {
         &oracle,
         &pins,
         &setup_failure,
+        &retries,
     ]))
 }
 

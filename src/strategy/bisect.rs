@@ -159,6 +159,7 @@ pub(crate) fn execute(
             .iter()
             .map(|index| commits[*index].clone())
             .collect::<Vec<_>>();
+        progress.round_start(round, &probe_shas)?;
         match crate::scheduler::evaluate_commits(
             config,
             mirror,

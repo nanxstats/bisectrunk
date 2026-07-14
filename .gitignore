@@ -1,4 +1,5 @@
 /target
+/bisectrunk-runs/
 
 # Zensical site
 pyproject.toml

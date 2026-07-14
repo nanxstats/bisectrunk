@@ -198,3 +198,33 @@ pub(crate) enum InconsistentPolicy {
     Leftmost,
     Retry,
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::*;
+
+    #[test]
+    fn every_long_flag_is_documented() {
+        let docs = include_str!("../docs/guide/cli.md");
+        assert_documented(&Cli::command(), docs);
+    }
+
+    fn assert_documented(command: &clap::Command, docs: &str) {
+        for argument in command.get_arguments() {
+            if matches!(argument.get_id().as_str(), "help" | "version") {
+                continue;
+            }
+            if let Some(long) = argument.get_long() {
+                assert!(
+                    docs.contains(&format!("--{long}")),
+                    "--{long} is missing from docs/guide/cli.md"
+                );
+            }
+        }
+        for subcommand in command.get_subcommands() {
+            assert_documented(subcommand, docs);
+        }
+    }
+}

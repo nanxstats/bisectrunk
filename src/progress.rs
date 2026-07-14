@@ -18,10 +18,23 @@ struct Inner {
     multi: MultiProgress,
     overall: ProgressBar,
     workers: Vec<ProgressBar>,
+    rounds: bool,
 }
 
 impl Progress {
     pub(crate) fn new(format: OutputFormat, workers: usize, total: usize) -> Result<Self> {
+        Self::build(format, workers, total, false)
+    }
+
+    pub(crate) fn new_bisect(
+        format: OutputFormat,
+        workers: usize,
+        total_rounds: usize,
+    ) -> Result<Self> {
+        Self::build(format, workers, total_rounds, true)
+    }
+
+    fn build(format: OutputFormat, workers: usize, total: usize, rounds: bool) -> Result<Self> {
         let resolved = match format {
             OutputFormat::Auto if std::io::stderr().is_terminal() => OutputFormat::Auto,
             OutputFormat::Auto => OutputFormat::Plain,
@@ -36,7 +49,7 @@ impl Progress {
             ProgressStyle::with_template("{msg} [{bar:32.cyan/blue}] {pos}/{len}")
                 .context("build overall progress style")?,
         );
-        overall.set_message("evaluations");
+        overall.set_message(if rounds { "rounds" } else { "evaluations" });
         let spinner_style = ProgressStyle::with_template("{spinner:.cyan} worker {prefix}: {msg}")
             .context("build worker progress style")?
             .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]);
@@ -55,6 +68,7 @@ impl Progress {
                 multi,
                 overall,
                 workers: bars,
+                rounds,
             }),
         })
     }
@@ -66,7 +80,9 @@ impl Progress {
     }
 
     pub(crate) fn evaluation(&self, evaluation: &Evaluation, cached: bool) -> Result<()> {
-        self.inner.overall.inc(1);
+        if !self.inner.rounds {
+            self.inner.overall.inc(1);
+        }
         match self.inner.format {
             OutputFormat::Json => self.json(&EvaluationEvent {
                 event: "evaluation",
@@ -99,8 +115,37 @@ impl Progress {
             OutputFormat::Auto => {
                 let _ = self.inner.multi.println(message);
             }
-            OutputFormat::Json | OutputFormat::Plain => println!("{message}"),
+            OutputFormat::Json => println!(
+                "{}",
+                serde_json::json!({ "event": "status", "message": message })
+            ),
+            OutputFormat::Plain => println!("{message}"),
         }
+    }
+
+    pub(crate) fn round_start(&self, round: usize, probes: &[String]) -> Result<()> {
+        if self.inner.rounds {
+            self.inner.overall.inc(1);
+        }
+        if self.inner.format == OutputFormat::Json {
+            self.json(&serde_json::json!({
+                "event": "round_start",
+                "round": round,
+                "probes": probes,
+            }))?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn conclusion(&self, first_bad: &str, last_good: &str) -> Result<()> {
+        if self.inner.format == OutputFormat::Json {
+            self.json(&serde_json::json!({
+                "event": "conclusion",
+                "first_bad": first_bad,
+                "last_good": last_good,
+            }))?;
+        }
+        Ok(())
     }
 
     pub(crate) fn finish(&self) {

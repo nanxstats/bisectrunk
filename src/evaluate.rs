@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::cli::SetupFailure;
+use crate::cli::{KeepPolicy, SetupFailure};
 use crate::config::ResolvedConfig;
 use crate::hooks::{HookContext, parse_timeout};
 use crate::mirror::Mirror;
@@ -32,12 +32,32 @@ pub(crate) fn evaluate(
     sha: &str,
     job: usize,
 ) -> Result<Evaluation> {
+    let mut evaluation = evaluate_once(config, mirror, sha, job)?;
+    for _ in 0..config.execution.retries {
+        if !matches!(
+            evaluation.classification,
+            Classification::Bad | Classification::Skip
+        ) {
+            break;
+        }
+        evaluation = evaluate_once(config, mirror, sha, job)?;
+    }
+    Ok(evaluation)
+}
+
+fn evaluate_once(
+    config: &ResolvedConfig,
+    mirror: &Mirror,
+    sha: &str,
+    job: usize,
+) -> Result<Evaluation> {
     let started = Instant::now();
     let worktree_path = config
         .execution
         .run_dir
         .join("worktrees")
-        .join(format!("job-{job}"));
+        .join(format!("job-{job}"))
+        .join(sha);
     let env_dir = config
         .execution
         .cache_dir
@@ -60,6 +80,7 @@ pub(crate) fn evaluate(
         &config.subject.project
     };
     let timeout = parse_timeout(config.execution.timeout.as_deref())?;
+    let pin_envs = crate::pins::environment(config)?;
     let context = HookContext {
         commit: sha,
         worktree: worktree.path(),
@@ -69,37 +90,58 @@ pub(crate) fn evaluate(
         run_dir: &config.execution.run_dir,
         job,
         extra_env: &config.hooks.env,
-        pin_envs: None,
+        pin_envs: pin_envs.as_deref(),
         baseline: None,
         candidate: None,
     };
     let mut setup_exit_code = None;
+    let setup_marker = env_dir.join(".bisectrunk-setup-complete");
     let (classification, exit_code, diff) = if let Some(setup) = &config.hooks.setup {
-        let result = crate::hooks::execute(
-            setup,
-            config.hooks.shell.as_deref(),
-            project,
-            &log_dir.join("setup.log"),
-            &context,
-            timeout,
-        )
-        .with_context(|| format!("execute setup hook for commit {sha}"))?;
-        setup_exit_code = Some(result.code);
-        let setup_class = classify_exit(result.code, result.timed_out);
-        match setup_class {
-            Classification::Good => run_hook(config, &context, &log_dir, timeout)?,
-            Classification::Bad if config.execution.setup_failure == SetupFailure::Bad => {
-                (Classification::Bad, result.code, None)
+        if setup_marker.is_file() {
+            run_hook(config, &context, &log_dir, started, timeout)?
+        } else {
+            let result = crate::hooks::execute(
+                setup,
+                config.hooks.shell.as_deref(),
+                project,
+                &log_dir.join("setup.log"),
+                &context,
+                remaining_timeout(started, timeout),
+            )
+            .with_context(|| format!("execute setup hook for commit {sha}"))?;
+            setup_exit_code = Some(result.code);
+            let setup_class = classify_exit(result.code, result.timed_out);
+            match setup_class {
+                Classification::Good => {
+                    fs::write(&setup_marker, b"complete\n").with_context(|| {
+                        format!("mark environment setup complete for commit {sha}")
+                    })?;
+                    run_hook(config, &context, &log_dir, started, timeout)?
+                }
+                Classification::Bad if config.execution.setup_failure == SetupFailure::Bad => {
+                    (Classification::Bad, result.code, None)
+                }
+                Classification::Abort => (Classification::Abort, result.code, None),
+                Classification::Bad | Classification::Skip => {
+                    (Classification::Skip, result.code, None)
+                }
             }
-            Classification::Abort => (Classification::Abort, result.code, None),
-            Classification::Bad | Classification::Skip => (Classification::Skip, result.code, None),
         }
     } else {
-        run_hook(config, &context, &log_dir, timeout)?
+        run_hook(config, &context, &log_dir, started, timeout)?
     };
-    worktree
-        .remove()
-        .with_context(|| format!("clean up worktree after commit {sha}"))?;
+    let retain = match config.execution.keep {
+        KeepPolicy::All => true,
+        KeepPolicy::Failed => classification != Classification::Good,
+        KeepPolicy::None => false,
+    };
+    if retain {
+        worktree.retain();
+    } else {
+        worktree
+            .remove()
+            .with_context(|| format!("clean up worktree after commit {sha}"))?;
+    }
     Ok(Evaluation {
         sha: sha.to_owned(),
         classification,
@@ -117,6 +159,7 @@ fn run_hook(
     config: &ResolvedConfig,
     context: &HookContext<'_>,
     log_dir: &std::path::Path,
+    started: Instant,
     timeout: Option<Duration>,
 ) -> Result<(Classification, i32, Option<String>)> {
     let result = crate::hooks::execute(
@@ -125,7 +168,7 @@ fn run_hook(
         context.project,
         &log_dir.join("run.log"),
         context,
-        timeout,
+        remaining_timeout(started, timeout),
     )
     .with_context(|| format!("execute run hook for commit {}", context.commit))?;
     let classification = classify_exit(result.code, result.timed_out);
@@ -133,6 +176,15 @@ fn run_hook(
     {
         return Ok((classification, result.code, None));
     }
-    let compared = crate::oracle::compare_artifact(config, context, log_dir, timeout)?;
+    let compared = crate::oracle::compare_artifact(
+        config,
+        context,
+        log_dir,
+        remaining_timeout(started, timeout),
+    )?;
     Ok((compared.classification, compared.exit_code, compared.diff))
+}
+
+fn remaining_timeout(started: Instant, timeout: Option<Duration>) -> Option<Duration> {
+    timeout.map(|limit| limit.saturating_sub(started.elapsed()))
 }

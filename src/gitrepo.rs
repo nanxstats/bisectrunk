@@ -52,12 +52,13 @@ pub(crate) fn ordered_range(
         walk.collect::<std::result::Result<Vec<_>, _>>()
             .context("walk ordered commit range")?
     };
-    oids.into_iter()
-        .filter(|oid| {
-            paths.is_empty() || commit_touches_paths(&repository, *oid, paths).unwrap_or(true)
-        })
-        .map(|oid| Ok(oid.to_string()))
-        .collect()
+    let mut commits = Vec::with_capacity(oids.len());
+    for oid in oids {
+        if paths.is_empty() || commit_touches_paths(&repository, oid, paths)? {
+            commits.push(oid.to_string());
+        }
+    }
+    Ok(commits)
 }
 
 pub(crate) fn parse_range(range: &str) -> Result<(&str, &str)> {

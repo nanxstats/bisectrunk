@@ -10,6 +10,7 @@ mod gitrepo;
 mod hooks;
 mod mirror;
 mod oracle;
+mod pins;
 mod progress;
 mod report;
 mod scheduler;
@@ -57,6 +58,7 @@ fn run_one(args: cli::RunArgs) -> Result<ExitCode> {
         )
     })?;
     let mirror = mirror::Mirror::acquire(&config.subject.repo, &config.execution.cache_dir)?;
+    pins::prepare(&config)?;
     let sha = gitrepo::resolve_revision(mirror.path(), &at)?;
     debug_assert!(gitrepo::has_commit(mirror.path(), &sha)?);
     let plan = state::RunPlan {
@@ -117,6 +119,7 @@ fn scan(args: cli::ScanArgs) -> Result<ExitCode> {
         )
     })?;
     let mirror = mirror::Mirror::acquire(&config.subject.repo, &config.execution.cache_dir)?;
+    pins::prepare(&config)?;
     let (start, end) = gitrepo::parse_range(&range)?;
     let commits = gitrepo::ordered_range(
         mirror.path(),
@@ -183,6 +186,7 @@ fn bisect(args: cli::BisectArgs) -> Result<ExitCode> {
         )
     })?;
     let mirror = mirror::Mirror::acquire(&config.subject.repo, &config.execution.cache_dir)?;
+    pins::prepare(&config)?;
     gitrepo::ensure_ancestor(mirror.path(), &good, &bad)?;
     let good_sha = gitrepo::resolve_revision(mirror.path(), &good)?;
     let bad_sha = gitrepo::resolve_revision(mirror.path(), &bad)?;
@@ -235,10 +239,10 @@ fn execute_bisect(
     on_inconsistent: cli::InconsistentPolicy,
     terms: &[String; 2],
 ) -> Result<ExitCode> {
-    let progress = progress::Progress::new(
+    let progress = progress::Progress::new_bisect(
         plan.config.execution.format,
         plan.config.execution.jobs.min(commits.len()),
-        commits.len() + usize::from(verify_endpoints),
+        estimated_rounds(commits.len().saturating_sub(1), plan.config.execution.jobs),
     )?;
     let interrupted = scheduler::install_interrupt_handler()?;
     let outcome = strategy::bisect::execute(
@@ -267,6 +271,7 @@ fn execute_bisect(
                 "last {} commit: {}",
                 terms[0], conclusion.last_good
             ));
+            progress.conclusion(&conclusion.first_bad, &conclusion.last_good)?;
             ledger.conclusion = Some(conclusion);
             ledger.complete = true;
             ExitCode::SUCCESS
@@ -308,6 +313,20 @@ fn execute_bisect(
     progress.line(&format!("report: {markdown}"));
     progress.line(&format!("report JSON: {json}"));
     Ok(exit)
+}
+
+fn estimated_rounds(commits: usize, jobs: usize) -> usize {
+    if commits <= 1 {
+        return 0;
+    }
+    let base = jobs.max(1) + 1;
+    let mut covered = 1usize;
+    let mut rounds = 0usize;
+    while covered < commits {
+        covered = covered.saturating_mul(base);
+        rounds += 1;
+    }
+    rounds
 }
 
 fn parse_terms(value: &str) -> Result<[String; 2]> {
@@ -378,6 +397,7 @@ fn resume(run_dir: &std::path::Path) -> Result<ExitCode> {
     }
     let mirror =
         mirror::Mirror::acquire(&plan.config.subject.repo, &plan.config.execution.cache_dir)?;
+    pins::prepare(&plan.config)?;
     match &plan.operation {
         state::Operation::Scan {
             commits,
@@ -414,18 +434,20 @@ fn report_run(run_dir: &std::path::Path) -> Result<ExitCode> {
 }
 
 fn clean(run_dir: Option<&std::path::Path>, clear_cache: bool) -> Result<ExitCode> {
-    let cache_dir = if let Some(run_dir) = run_dir {
-        state::load_plan(run_dir)
-            .ok()
-            .map(|plan| plan.config.execution.cache_dir)
-    } else {
-        None
-    };
+    let plan = run_dir.and_then(|path| state::load_plan(path).ok());
+    let cache_dir = plan
+        .as_ref()
+        .map(|plan| plan.config.execution.cache_dir.clone());
     if let Some(run_dir) = run_dir
         && run_dir.exists()
     {
         fs::remove_dir_all(run_dir)
             .with_context(|| format!("remove run directory {}", run_dir.display()))?;
+    }
+    if let Some(plan) = &plan {
+        let mirror =
+            mirror::Mirror::acquire(&plan.config.subject.repo, &plan.config.execution.cache_dir)?;
+        mirror.prune_worktrees()?;
     }
     if clear_cache {
         let cache_dir = cache_dir
