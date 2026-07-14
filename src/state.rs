@@ -27,6 +27,9 @@ pub(crate) enum Operation {
         good: String,
         bad: String,
         commits: Vec<String>,
+        verify_endpoints: bool,
+        on_inconsistent: crate::cli::InconsistentPolicy,
+        terms: [String; 2],
     },
 }
 
@@ -62,6 +65,10 @@ pub(crate) struct Conclusion {
     pub(crate) last_good: String,
     #[serde(default)]
     pub(crate) candidates: Vec<String>,
+    #[serde(default)]
+    pub(crate) first_bad_metadata: Option<crate::gitrepo::CommitMetadata>,
+    #[serde(default)]
+    pub(crate) last_good_metadata: Option<crate::gitrepo::CommitMetadata>,
 }
 
 impl RunState {

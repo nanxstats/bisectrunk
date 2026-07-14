@@ -131,10 +131,24 @@ fn markdown(plan: &RunPlan, state: &RunState, report: &Report<'_>) -> String {
         }
     }
     if let Some(conclusion) = &state.conclusion {
-        output.push_str(&format!(
-            "\n## Conclusion\n\nFirst bad commit: `{}`\n\nLast good commit: `{}`\n",
-            conclusion.first_bad, conclusion.last_good
-        ));
+        output.push_str("\n## Conclusion\n\n");
+        if conclusion.candidates.is_empty() {
+            output.push_str(&format!(
+                "First bad commit: `{}`\n\nLast good commit: `{}`\n",
+                conclusion.first_bad, conclusion.last_good
+            ));
+            if let Some(metadata) = &conclusion.first_bad_metadata {
+                output.push_str(&format!(
+                    "\nFirst bad details: {} — {} — {}\n",
+                    metadata.author, metadata.date, metadata.subject
+                ));
+            }
+        } else {
+            output.push_str("The first bad commit is one of:\n\n");
+            for candidate in &conclusion.candidates {
+                output.push_str(&format!("- `{candidate}`\n"));
+            }
+        }
     }
     let total = operation_commits(&plan.operation).len();
     let evaluated = state.evaluations.len();

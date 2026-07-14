@@ -32,7 +32,7 @@ pub fn run() -> Result<ExitCode> {
 fn dispatch(cli: cli::Cli) -> Result<ExitCode> {
     match cli.command {
         cli::Command::Run(args) => run_one(args),
-        cli::Command::Bisect(_) => bail!("bisect is implemented in milestone M3"),
+        cli::Command::Bisect(args) => bisect(args),
         cli::Command::Scan(args) => scan(args),
         cli::Command::Resume { run_dir } => resume(&run_dir),
         cli::Command::Report { run_dir } => report_run(&run_dir),
@@ -145,6 +145,179 @@ fn scan(args: cli::ScanArgs) -> Result<ExitCode> {
     execute_scan(&plan, &mirror, &commits, &mut ledger, stop_on_first_bad)
 }
 
+fn bisect(args: cli::BisectArgs) -> Result<ExitCode> {
+    let file = config::load(&args.shared)?;
+    let good = args
+        .good
+        .clone()
+        .or_else(|| file.subject.good.clone())
+        .ok_or_else(|| {
+            anyhow::anyhow!("--good is required (or set subject.good in bisectrunk.toml)")
+        })?;
+    let bad = args
+        .bad
+        .clone()
+        .or_else(|| file.subject.bad.clone())
+        .unwrap_or_else(|| "HEAD".into());
+    let terms = parse_terms(
+        args.terms
+            .clone()
+            .or_else(|| file.execution.terms.clone())
+            .as_deref()
+            .unwrap_or("good,bad"),
+    )?;
+    let verify_endpoints = if args.no_verify_endpoints {
+        false
+    } else {
+        file.execution.verify_endpoints.unwrap_or(true)
+    };
+    let on_inconsistent = args
+        .on_inconsistent
+        .or(file.execution.on_inconsistent)
+        .unwrap_or_default();
+    let config = config::resolve(&args.shared, file)?;
+    fs::create_dir_all(&config.execution.run_dir).with_context(|| {
+        format!(
+            "create run directory {}",
+            config.execution.run_dir.display()
+        )
+    })?;
+    let mirror = mirror::Mirror::acquire(&config.subject.repo, &config.execution.cache_dir)?;
+    gitrepo::ensure_ancestor(mirror.path(), &good, &bad)?;
+    let good_sha = gitrepo::resolve_revision(mirror.path(), &good)?;
+    let bad_sha = gitrepo::resolve_revision(mirror.path(), &bad)?;
+    if good_sha == bad_sha {
+        bail!("--good and --bad resolve to the same commit {good_sha}");
+    }
+    let mut commits = gitrepo::ordered_range(
+        mirror.path(),
+        &good,
+        &bad,
+        config.subject.first_parent,
+        &config.subject.paths,
+    )?;
+    if commits.last() != Some(&bad_sha) {
+        commits.push(bad_sha.clone());
+    }
+    commits.insert(0, good_sha.clone());
+    let plan = state::RunPlan {
+        config: config.clone(),
+        operation: state::Operation::Bisect {
+            good: good_sha,
+            bad: bad_sha,
+            commits: commits.clone(),
+            verify_endpoints,
+            on_inconsistent,
+            terms: terms.clone(),
+        },
+    };
+    state::save_plan(&plan)?;
+    let mut ledger = state::RunState::new();
+    state::save_state(&config.execution.run_dir, &ledger)?;
+    execute_bisect(
+        &plan,
+        &mirror,
+        &commits,
+        &mut ledger,
+        verify_endpoints,
+        on_inconsistent,
+        &terms,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_bisect(
+    plan: &state::RunPlan,
+    mirror: &mirror::Mirror,
+    commits: &[String],
+    ledger: &mut state::RunState,
+    verify_endpoints: bool,
+    on_inconsistent: cli::InconsistentPolicy,
+    terms: &[String; 2],
+) -> Result<ExitCode> {
+    let progress = progress::Progress::new(
+        plan.config.execution.format,
+        plan.config.execution.jobs.min(commits.len()),
+        commits.len() + usize::from(verify_endpoints),
+    )?;
+    let interrupted = scheduler::install_interrupt_handler()?;
+    let outcome = strategy::bisect::execute(
+        &plan.config,
+        mirror,
+        commits,
+        ledger,
+        &progress,
+        &interrupted,
+        verify_endpoints,
+        on_inconsistent,
+        terms,
+    )?;
+    let exit = match outcome {
+        strategy::bisect::BisectOutcome::Conclusive(conclusion) => {
+            let mut conclusion = *conclusion;
+            conclusion.first_bad_metadata =
+                Some(gitrepo::metadata(mirror.path(), &conclusion.first_bad)?);
+            conclusion.last_good_metadata =
+                Some(gitrepo::metadata(mirror.path(), &conclusion.last_good)?);
+            progress.line(&format!(
+                "first {} commit: {}",
+                terms[1], conclusion.first_bad
+            ));
+            progress.line(&format!(
+                "last {} commit: {}",
+                terms[0], conclusion.last_good
+            ));
+            ledger.conclusion = Some(conclusion);
+            ledger.complete = true;
+            ExitCode::SUCCESS
+        }
+        strategy::bisect::BisectOutcome::Inconclusive {
+            candidates,
+            message,
+        } => {
+            progress.line(&format!("inconclusive: {message}"));
+            progress.line(&format!("candidate set: {}", candidates.join(" ")));
+            ledger.conclusion = Some(state::Conclusion {
+                first_bad: String::new(),
+                last_good: String::new(),
+                candidates,
+                first_bad_metadata: None,
+                last_good_metadata: None,
+            });
+            ExitCode::from(2)
+        }
+        strategy::bisect::BisectOutcome::EndpointFailed(message) => {
+            progress.line(&format!("endpoint verification failed: {message}"));
+            ExitCode::from(3)
+        }
+        strategy::bisect::BisectOutcome::HookAbort => ExitCode::from(4),
+        strategy::bisect::BisectOutcome::Interrupted => {
+            ledger.interrupted = true;
+            progress.line(&format!(
+                "resume with: bisectrunk resume {}",
+                plan.config.execution.run_dir.display()
+            ));
+            ExitCode::from(2)
+        }
+    };
+    state::save_state(&plan.config.execution.run_dir, ledger)?;
+    report::render(plan, ledger)?;
+    mirror.prune_worktrees()?;
+    progress.finish();
+    let (markdown, json) = report::report_paths(&plan.config.execution.run_dir);
+    progress.line(&format!("report: {markdown}"));
+    progress.line(&format!("report JSON: {json}"));
+    Ok(exit)
+}
+
+fn parse_terms(value: &str) -> Result<[String; 2]> {
+    let values = value.split(',').collect::<Vec<_>>();
+    if values.len() != 2 || values.iter().any(|term| term.is_empty()) {
+        bail!("invalid --terms {value:?}; expected good,bad");
+    }
+    Ok([values[0].to_owned(), values[1].to_owned()])
+}
+
 fn execute_scan(
     plan: &state::RunPlan,
     mirror: &mirror::Mirror,
@@ -212,7 +385,21 @@ fn resume(run_dir: &std::path::Path) -> Result<ExitCode> {
             ..
         } => execute_scan(&plan, &mirror, commits, &mut ledger, *stop_on_first_bad),
         state::Operation::Run { .. } => bail!("single-commit runs cannot be resumed"),
-        state::Operation::Bisect { .. } => bail!("bisect resume is implemented in milestone M3"),
+        state::Operation::Bisect {
+            commits,
+            verify_endpoints,
+            on_inconsistent,
+            terms,
+            ..
+        } => execute_bisect(
+            &plan,
+            &mirror,
+            commits,
+            &mut ledger,
+            *verify_endpoints,
+            *on_inconsistent,
+            terms,
+        ),
     }
 }
 

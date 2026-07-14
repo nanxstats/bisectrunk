@@ -1,6 +1,14 @@
 use anyhow::{Context, Result};
 use git2::{DiffOptions, Oid, Repository, Sort};
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct CommitMetadata {
+    pub(crate) sha: String,
+    pub(crate) author: String,
+    pub(crate) date: String,
+    pub(crate) subject: String,
+}
+
 pub(crate) fn resolve_revision(mirror: &std::path::Path, revision: &str) -> Result<String> {
     let repository = Repository::open_bare(mirror)
         .with_context(|| format!("open local mirror {}", mirror.display()))?;
@@ -60,6 +68,43 @@ pub(crate) fn parse_range(range: &str) -> Result<(&str, &str)> {
         anyhow::bail!("invalid range {range:?}; expected A..B");
     }
     Ok((start, end))
+}
+
+pub(crate) fn metadata(mirror: &std::path::Path, sha: &str) -> Result<CommitMetadata> {
+    let repository = Repository::open_bare(mirror)
+        .with_context(|| format!("open local mirror {}", mirror.display()))?;
+    let oid = Oid::from_str(sha).with_context(|| format!("parse commit id {sha}"))?;
+    let commit = repository
+        .find_commit(oid)
+        .with_context(|| format!("load commit {sha}"))?;
+    let author = commit.author();
+    let date = jiff::Timestamp::new(commit.time().seconds(), 0)
+        .with_context(|| format!("convert timestamp for commit {sha}"))?
+        .to_string();
+    Ok(CommitMetadata {
+        sha: sha.to_owned(),
+        author: author.name().unwrap_or("unknown").to_owned(),
+        date,
+        subject: commit.summary().unwrap_or("(no subject)").to_owned(),
+    })
+}
+
+pub(crate) fn ensure_ancestor(
+    mirror: &std::path::Path,
+    ancestor: &str,
+    descendant: &str,
+) -> Result<()> {
+    let repository = Repository::open_bare(mirror)
+        .with_context(|| format!("open local mirror {}", mirror.display()))?;
+    let ancestor = resolve_oid(&repository, ancestor)?;
+    let descendant = resolve_oid(&repository, descendant)?;
+    let merge_base = repository
+        .merge_base(ancestor, descendant)
+        .with_context(|| format!("find merge base of {ancestor} and {descendant}"))?;
+    if merge_base != ancestor {
+        anyhow::bail!("good revision {ancestor} is not an ancestor of bad revision {descendant}");
+    }
+    Ok(())
 }
 
 fn resolve_oid(repository: &Repository, revision: &str) -> Result<Oid> {
