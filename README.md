@@ -6,8 +6,7 @@
 
 `bisectrunk` is a parallel, environment-aware, resumable execution engine for
 finding behavior changes in Git history.
-
-Imagine that an R Markdown report or Jupyter notebook rendered correctly six
+Imagine that a Jupyter notebook or R Markdown report rendered correctly six
 months ago but differs today. The project did not change; an unpinned upstream
 dependency did. `bisectrunk` checks out candidate dependency commits into
 detached worktrees, installs each into an isolated environment, runs the project,
@@ -54,11 +53,14 @@ bisectrunk bisect \
   --oracle compare --baseline golden/report.html --artifact report.html
 ```
 
-Use `scan --range A..B` to map every classification and reveal multiple
-transitions. Use `run --at REV` to develop hooks, `resume RUN_DIR` after an
-interrupt, and `report RUN_DIR` to regenerate reports. Common controls include
-`--jobs`, `--timeout`, `--retries`, `--paths`, `--first-parent`, `--format`, and
-`--config`. See the [complete CLI reference](https://nanx.me/bisectrunk/guide/cli/).
+Use `scan --range A..B` to map every classification and reveal multiple transitions.
+
+Use `run --at REV` to develop hooks, `resume RUN_DIR` after an interrupt, and
+`report RUN_DIR` to regenerate reports.
+
+Other common controls include `--jobs`, `--timeout`, `--retries`, `--paths`,
+`--first-parent`, `--format`, and `--config`.
+See the [complete CLI reference](https://nanx.me/bisectrunk/guide/cli/).
 
 ## Hook exit-code protocol
 
@@ -69,9 +71,9 @@ interrupt, and `report RUN_DIR` to regenerate reports. Common controls include
 | `125` | skip / untestable |
 | `128` or greater | abort the run |
 
-Hook output is captured under the run directory rather than printed. Every run
-also writes a resolved `run.toml`, resumable `state.json`, `report.json`, and
-`report.md`.
+Hook output is captured under the run directory rather than printed.
+Every run also writes a resolved `run.toml`, resumable `state.json`,
+`report.json`, and `report.md`.
 
 ## License
 
