@@ -1,3 +1,7 @@
+---
+icon: lucide/terminal
+---
+
 # CLI reference
 
 Run `bisectrunk --help` or `bisectrunk <COMMAND> --help` for generated help.

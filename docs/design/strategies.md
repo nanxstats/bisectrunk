@@ -1,3 +1,7 @@
+---
+icon: lucide/split
+---
+
 # Search strategies
 
 ## Parallel k-section bisect

@@ -1,3 +1,7 @@
+---
+icon: lucide/scroll-text
+---
+
 # Protocol
 
 The evaluator preserves the `git bisect run` classification protocol: zero is

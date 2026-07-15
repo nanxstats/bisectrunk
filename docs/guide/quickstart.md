@@ -1,3 +1,7 @@
+---
+icon: lucide/package-open
+---
+
 # Quick start
 
 Start with `run`, which evaluates one commit and makes hook development quick:

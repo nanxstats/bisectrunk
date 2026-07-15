@@ -1,3 +1,7 @@
+---
+icon: lucide/webhook
+---
+
 # Hook contract
 
 Hooks run through `sh -c` on Unix and `cmd /C` on Windows unless `--shell`
