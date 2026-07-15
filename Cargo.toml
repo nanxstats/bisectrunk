@@ -2,14 +2,14 @@
 name = "bisectrunk"
 version = "0.1.0"
 edition = "2024"
-description = "To be added"
+rust-version = "1.85"
+description = "Parallel, environment-aware, resumable Git bisection executor"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/nanxstats/bisectrunk"
 documentation = "https://nanx.me/bisectrunk/"
-keywords = []
-categories = ["command-line-utilities", "development-tools"]
-rust-version = "1.85"
+keywords = ["git", "bisect", "cli", "testing", "regression"]
+categories = ["command-line-utilities", "development-tools", "development-tools::testing"]
 authors = ["Nan Xiao <me@nanx.me>"]
 exclude = [
     "AGENTS.md",
@@ -22,3 +22,26 @@ exclude = [
 ]
 
 [dependencies]
+anyhow = "1"
+blake3 = "1"
+clap = { version = "4", features = ["derive"] }
+console = "0.16"
+crossbeam-channel = "0.5"
+ctrlc = "3"
+etcetera = "0.10"
+git2 = { version = "0.20", features = ["vendored-libgit2", "vendored-openssl"] }
+humantime = "2"
+indicatif = "0.18"
+jiff = { version = "0.2", features = ["serde"] }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+similar = "2"
+tempfile = "3"
+toml = "0.9"
+xshell = "0.2"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+proptest = "1"

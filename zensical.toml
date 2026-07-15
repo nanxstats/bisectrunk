@@ -1,6 +1,6 @@
 [project]
-site_name = "TBA"
-site_description = "TBA"
+site_name = "bisectrunk"
+site_description = "Parallel, environment-aware, resumable Git bisection"
 site_author = "Nan Xiao"
 site_url = "https://nanx.me/bisectrunk/"
 repo_url = "https://github.com/nanxstats/bisectrunk"
@@ -25,6 +25,7 @@ nav = [
     "design/strategies.md",
     "design/isolation.md",
     "design/protocol.md",
+    "design/deps.md",
   ] },
 ]
 
