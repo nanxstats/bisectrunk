@@ -1,3 +1,7 @@
+---
+icon: lucide/refresh-ccw
+---
+
 # Dependency choices
 
 - `git2` performs read-only history operations against local mirrors.

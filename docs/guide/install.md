@@ -1,3 +1,7 @@
+---
+icon: lucide/download
+---
+
 # Install
 
 The only runtime prerequisite is a `git` executable on `PATH`. Hooks may of
@@ -15,5 +19,4 @@ Or install the development version:
 cargo install --git https://github.com/nanxstats/bisectrunk.git
 ```
 
-Release pages also provide prebuilt archives for Linux, macOS, and Windows.
 Confirm the installation with `bisectrunk --version`.

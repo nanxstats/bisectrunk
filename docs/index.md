@@ -1,3 +1,7 @@
+---
+icon: lucide/house
+---
+
 # bisectrunk
 
 ## Find the commit that changed the result

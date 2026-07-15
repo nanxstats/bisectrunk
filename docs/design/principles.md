@@ -1,3 +1,7 @@
+---
+icon: lucide/lightbulb
+---
+
 # Design principles
 
 1. The core is language-agnostic; shell hooks own ecosystem knowledge.
