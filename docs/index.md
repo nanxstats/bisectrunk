@@ -1,4 +1,6 @@
-# Find the commit that changed the result
+# bisectrunk
+
+## Find the commit that changed the result
 
 `bisectrunk` finds behavior changes in a Git repository while owning the
 repetitive work around each candidate: isolated checkout, installation,
