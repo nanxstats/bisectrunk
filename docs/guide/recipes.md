@@ -1,3 +1,7 @@
+---
+icon: lucide/chef-hat
+---
+
 # Recipes
 
 ## R

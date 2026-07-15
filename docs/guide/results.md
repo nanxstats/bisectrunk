@@ -1,3 +1,7 @@
+---
+icon: lucide/archive-restore
+---
+
 # Results and recovery
 
 Each run creates `bisectrunk-runs/YYYYMMDD-HHMMSS-ID/` unless `--run-dir`

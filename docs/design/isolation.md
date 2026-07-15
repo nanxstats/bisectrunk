@@ -1,3 +1,7 @@
+---
+icon: lucide/container
+---
+
 # Isolation and caching
 
 One bare mirror per canonical repository identity lives below
