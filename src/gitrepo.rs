@@ -82,11 +82,16 @@ pub(crate) fn metadata(mirror: &std::path::Path, sha: &str) -> Result<CommitMeta
     let date = jiff::Timestamp::new(commit.time().seconds(), 0)
         .with_context(|| format!("convert timestamp for commit {sha}"))?
         .to_string();
+    let subject = commit
+        .summary()
+        .with_context(|| format!("decode subject for commit {sha}"))?
+        .unwrap_or("(no subject)")
+        .to_owned();
     Ok(CommitMetadata {
         sha: sha.to_owned(),
         author: author.name().unwrap_or("unknown").to_owned(),
         date,
-        subject: commit.summary().unwrap_or("(no subject)").to_owned(),
+        subject,
     })
 }
 
