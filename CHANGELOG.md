@@ -5,9 +5,9 @@
 ### Dependencies
 
 - Updated `etcetera`, `git2`, `similar`, and `toml` to their latest compatible
-  major versions.
+  major versions (#8).
 - Raised the minimum supported Rust version from 1.85 to 1.87 since
-  `etcetera` v0.11 requires it.
+  `etcetera` v0.11 requires it (#8).
 
 ## bisectrunk 0.1.0
 
