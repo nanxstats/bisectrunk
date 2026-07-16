@@ -15,7 +15,7 @@ hooks describe how your ecosystem installs and tests a commit.
 
 ## Install
 
-`bisectrunk` requires Git and Rust 1.85 or newer:
+`bisectrunk` requires Git and Rust 1.87 or newer:
 
 ```bash
 cargo install bisectrunk

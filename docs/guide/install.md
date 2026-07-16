@@ -7,7 +7,7 @@ icon: lucide/download
 The only runtime prerequisite is a `git` executable on `PATH`. Hooks may of
 course require their own language toolchain.
 
-Install with Rust 1.85 or newer:
+Install with Rust 1.87 or newer:
 
 ```bash
 cargo install bisectrunk
