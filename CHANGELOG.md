@@ -1,5 +1,11 @@
 # Changelog
 
+## bisectrunk 0.1.2
+
+### Dependencies
+
+- Use full version requirements for Cargo dependencies (#11).
+
 ## bisectrunk 0.1.1
 
 ### Dependencies
