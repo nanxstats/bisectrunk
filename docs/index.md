@@ -4,9 +4,9 @@ icon: lucide/house
 
 # bisectrunk
 
+[![crates.io](https://img.shields.io/crates/v/bisectrunk.svg)](https://crates.io/crates/bisectrunk)
 [![CI tests](https://github.com/nanxstats/bisectrunk/actions/workflows/ci.yml/badge.svg)](https://github.com/nanxstats/bisectrunk/actions/workflows/ci.yml)
 [![Documentation](https://github.com/nanxstats/bisectrunk/actions/workflows/docs.yml/badge.svg)](https://nanx.me/bisectrunk/)
-[![crates.io](https://img.shields.io/crates/v/bisectrunk.svg)](https://crates.io/crates/bisectrunk)
 
 `bisectrunk` finds the commit that changed a result.
 It searches for behavior changes in a Git repository while owning the
