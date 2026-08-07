@@ -32,7 +32,9 @@ Write the rendered file below `BISECTRUNK_OUT`, then compare it to a golden file
 
 ```bash
 --run 'jupyter nbconvert --execute report.ipynb --to html --output "$BISECTRUNK_OUT/report.html"' \
---oracle compare --baseline golden/report.html --artifact report.html
+--oracle compare \
+--baseline golden/report.html \
+--artifact report.html
 ```
 
 For R Markdown, the run hook can call `rmarkdown::render()` with

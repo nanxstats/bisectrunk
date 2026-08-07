@@ -27,8 +27,11 @@ For a subject repository whose own tests classify commits:
 
 ```bash
 bisectrunk bisect \
-  --repo . --good v2.3.0 --bad HEAD \
-  --run 'cargo test -q' --jobs 8
+  --repo . \
+  --good v2.3.0 \
+  --bad HEAD \
+  --run 'cargo test -q' \
+  --jobs 8
 ```
 
 R dependency with an exit-code oracle:
@@ -36,7 +39,8 @@ R dependency with an exit-code oracle:
 ```bash
 bisectrunk bisect \
   --repo https://github.com/tidyverse/dplyr \
-  --good v1.1.0 --bad main \
+  --good v1.1.0 \
+  --bad main \
   --setup 'R CMD INSTALL --library="$BISECTRUNK_ENV" "$BISECTRUNK_WORKTREE"' \
   --run 'R_LIBS_USER="$BISECTRUNK_ENV" Rscript test.R' \
   --jobs 8
@@ -47,10 +51,13 @@ Notebook drift with an artifact-comparison oracle:
 ```bash
 bisectrunk bisect \
   --repo https://github.com/example/dependency \
-  --good 2024-01-01 --bad HEAD \
+  --good 2024-01-01 \
+  --bad HEAD \
   --setup 'uv pip install --python "$BISECTRUNK_ENV/bin/python" "$BISECTRUNK_WORKTREE"' \
   --run '"$BISECTRUNK_ENV/bin/python" -m jupyter nbconvert --execute report.ipynb --to html --output "$BISECTRUNK_OUT/report.html"' \
-  --oracle compare --baseline golden/report.html --artifact report.html
+  --oracle compare \
+  --baseline golden/report.html \
+  --artifact report.html
 ```
 
 Use `scan --range A..B` to map every classification and reveal multiple transitions.
