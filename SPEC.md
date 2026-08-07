@@ -124,9 +124,10 @@ R dependency, exit-code oracle (testthat script exits nonzero on failure):
 ```bash
 bisectrunk bisect \
   --repo https://github.com/tidyverse/dplyr \
-  --good v1.1.0 --bad main \
+  --good v1.1.0 \
+  --bad main \
   --setup 'R CMD INSTALL --library="$BISECTRUNK_ENV" "$BISECTRUNK_WORKTREE"' \
-  --run   'R_LIBS_USER="$BISECTRUNK_ENV" Rscript test.R' \
+  --run 'R_LIBS_USER="$BISECTRUNK_ENV" Rscript test.R' \
   --jobs 8
 ```
 
@@ -134,10 +135,14 @@ Rendered-report drift, compare oracle:
 
 ```bash
 bisectrunk bisect \
-  --repo https://github.com/some/dep --good 2024-01-01 --bad HEAD \
+  --repo https://github.com/some/dep \
+  --good 2024-01-01 \
+  --bad HEAD \
   --setup 'uv pip install --python "$BISECTRUNK_ENV/bin/python" "$BISECTRUNK_WORKTREE"' \
-  --run   '"$BISECTRUNK_ENV/bin/python" -m jupyter nbconvert --execute report.ipynb --to html --output "$BISECTRUNK_OUT/report.html"' \
-  --oracle compare --baseline golden/report.html --artifact report.html
+  --run '"$BISECTRUNK_ENV/bin/python" -m jupyter nbconvert --execute report.ipynb --to html --output "$BISECTRUNK_OUT/report.html"' \
+  --oracle compare \
+  --baseline golden/report.html \
+  --artifact report.html
 ```
 
 Bisecting the subject repo itself (classic `git bisect run`, parallelized):

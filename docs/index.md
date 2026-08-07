@@ -26,9 +26,13 @@ or an honest candidate set when broken commits make a unique answer impossible.
 ## Example
 
 ```bash
-bisectrunk bisect --repo ../dependency --good v1.0.0 --bad main \
+bisectrunk bisect \
+  --repo ../dependency \
+  --good v1.0.0 \
+  --bad main \
   --setup './install-into "$BISECTRUNK_ENV" "$BISECTRUNK_WORKTREE"' \
-  --run './check-project' --jobs 8
+  --run './check-project' \
+  --jobs 8
 ```
 
 ## Beyond bisect
