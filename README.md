@@ -1,8 +1,8 @@
 # bisectrunk
 
+[![crates.io](https://img.shields.io/crates/v/bisectrunk.svg)](https://crates.io/crates/bisectrunk)
 [![CI tests](https://github.com/nanxstats/bisectrunk/actions/workflows/ci.yml/badge.svg)](https://github.com/nanxstats/bisectrunk/actions/workflows/ci.yml)
 [![Documentation](https://github.com/nanxstats/bisectrunk/actions/workflows/docs.yml/badge.svg)](https://nanx.me/bisectrunk/)
-[![crates.io](https://img.shields.io/crates/v/bisectrunk.svg)](https://crates.io/crates/bisectrunk)
 
 `bisectrunk` is a parallel, environment-aware, resumable execution engine for
 finding behavior changes in Git history.
