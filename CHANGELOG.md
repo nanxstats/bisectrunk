@@ -1,5 +1,12 @@
 # Changelog
 
+## bisectrunk 0.1.3
+
+### Documentation
+
+- Reformatted multiline Bash examples for improved readability (#15).
+- Moved the crates.io version badge ahead of the CI and documentation badges (#16).
+
 ## bisectrunk 0.1.2
 
 ### Dependencies
